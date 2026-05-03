@@ -447,7 +447,10 @@ def box_height(floor_normal, floor_d, box_normal, box_d):
     return abs(box_d - floor_d)
 
 def measure(PC, box_mask, box_normal, box_d):
-     # Gather 3D points on the box top
+    H, W, _ = PC.shape
+    flat = PC.reshape(-1, 3)   # (H*W, 3)
+
+    # Gather 3D points on the box top
     rows, cols = np.where(box_mask)
     pts_3d = PC[rows, cols, :]
     pts_3d = pts_3d[pts_3d[:, 2] != 0]        # remove invalid
@@ -477,7 +480,17 @@ def measure(PC, box_mask, box_normal, box_d):
     # Convert UV corners back to 3D world coordinates
     corners_3d = np.array([anchor + c[0]*u + c[1]*v for c in corners_uv])
 
-    return length, width, corners_3d
+    pixel_idxs = []
+    for corner in corners_3d:
+        dist_sq = np.sum((flat - corner) ** 2, axis=1)
+        pixel_idxs.append(int(np.argmin(dist_sq)))
+
+    pixel_idxs = np.array(pixel_idxs)
+    rows = pixel_idxs // W
+    cols = pixel_idxs  % W
+    corners_rc = np.column_stack([rows, cols])   # (4, 2)
+
+    return length, width, corners_rc
 
 # =============================================================================
 # STEP 8 – FINAL VISUALISATION
@@ -616,10 +629,7 @@ def main():
     print(f"Height  : {height*100:.1f} cm")
 
 
-    length, width, corners_3d = measure(PC, box_top_mask, box_normal, box_d)
-    
-    # Convert 3D corners to pixel (row, col) positions for plotting
-    corners_rc = corners_pixels_from_3d(PC, corners_3d)
+    length, width, corners_rc = measure(PC, box_top_mask, box_normal, box_d)
 
      # Show final result
     show_final(Amp, PC, floor_mask, box_top_mask, height, length, width, corners_rc, number)
