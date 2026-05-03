@@ -156,9 +156,7 @@ def ransac_plane(points, threshold=0.01, max_iterations=1000):
             if best_count == N:
                 break
      
-    # ── Refinement: refit using ALL inliers for higher accuracy ───────────────
-    # full_matrices=False is REQUIRED – without it numpy tries to allocate
-    # a 133000x133000 matrix and crashes with MemoryError!
+    # ── Refinement: refit using ALL inliers for higher accuracy ──────────
     if best_count >= 3:
         pts_in = points[best_inliers]
         centroid = pts_in.mean(axis=0)
@@ -174,9 +172,6 @@ def ransac_plane(points, threshold=0.01, max_iterations=1000):
 
 
 def count_inliers(points, normal, d, threshold):
-
-    # distances = np.abs(points @ normal - d)
-    # print(distances)
 
     distances = np.abs(np.dot(points, normal) - d)     
 
@@ -289,14 +284,9 @@ def box_top(PC, floor_mask, floor_n, floor_d, threshold=0.01, max_iterations=100
 #   OPENING  = erode then dilate  → removes small stray blobs
 
 def clean_mask(floor_mask, label=""):
-    print(f"Cleaning {label} mask: Closing (fill holes) then Opening (remove noise) ...")
-
-    # struct = ndimage.generate_binary_structure(2, 2)   # 8-connectivity
-    #mask = ndimage.binary_closing(floor_mask,  structure=struct, iterations=5)
-   # mask = ndimage.binary_opening(mask,structure=struct, iterations=3)
-    
-    floor_clean = ndimage.binary_closing(floor_mask, structure=np.ones((3,3)))
-    floor_clean = ndimage.binary_opening(floor_clean, structure=np.ones((5,5)))
+    print(f"Cleaning {label} mask:Opening (remove noise) then Closing (fill holes) ...")
+    floor_clean = ndimage.binary_opening(floor_mask, structure=np.ones((3,3)))
+    floor_clean = ndimage.binary_closing(floor_clean, structure=np.ones((5,5)))
     floor_clean = ndimage.binary_fill_holes(floor_clean)
 
     return floor_clean
@@ -308,7 +298,7 @@ def show_floor_masks(raw_mask, clean_mask_result, example_num):
     for ax, mask, title in zip(
             axes,
             [raw_mask, clean_mask_result],
-            ["Floor Mask – Raw RANSAC", "Floor Mask – After Closing + Opening"]):
+            ["Floor Mask – Raw RANSAC", "Floor Mask - morphology cleanup"]):
         rgb = np.zeros((*mask.shape, 3), dtype=np.uint8)
         rgb[mask]  = [0,   0, 200]    # blue = floor
         rgb[~mask] = [120, 0,   0]    # dark red = not floor
